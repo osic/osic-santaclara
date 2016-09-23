@@ -18,7 +18,7 @@ Create interfaces on all nodes
 
     cd /opt/osic-ref-impl/playbooks
     # create interfaces w playbook (skip deploy)
-    ansible-playbook -vv -i inventory/hosts.hasvcs create-network-interfaces.yml --ask-pass --limit '!deploy'
+    ansible-playbook -i inventory/hosts.hasvcs create-network-interfaces.yml --ask-pass --limit '!deploy'
 
 2. Setup Internet access w route and nameserver
     

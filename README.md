@@ -13,8 +13,9 @@ Follow these commands to update the kernel:
 ### Prepare interfaces for Internet access
 
 1. Create interfaces
-    
-    
+
+Create interfaces on all nodes
+
     cd /opt/osic-ref-impl/playbooks
     # create interfaces w playbook (skip deploy)
     ansible-playbook -vv -i inventory/hosts.hasvcs create-network-interfaces.yml --ask-pass --limit '!deploy'

@@ -2,6 +2,135 @@
 
 This document details the installation tasks for the Santa Clara environment.
 
+## About Santa Clara environment
+
+### Interfaces
+
+The SC cluster is comprised of Dell and Lenovo servers. The default NIC is different for each machine type and configuration files (e.g. input.csv) must account for different network interface names.
+
+The following list shows the bonded interface to be used for each machine type.
+
+  * Dell - em1
+  * Lenovo - p2p1
+
+The above interfaces must be entered into the input.csv during installation.
+
+	# example lines showing different interfaces (em1 and p2p1)
+	...
+	qa-ci-cinder03,f0:bc:12:07:05:b0,172.22.0.34,255.255.252.0,172.22.0.1,8.8.8.8,em1,ubuntu-14.04.3-server-unattended-osic-generic
+	qa-ci-swift01,f0:bc:12:07:1d:30,172.22.0.35,255.255.252.0,172.22.0.1,8.8.8.8,p2p1,ubuntu-14.04.3-server-unattended-osic-generic
+	...
+
+
+
+#### Extra NICs
+
+TBD
+
+
+## Pre-installation items
+
+To properly install in this environment we must complete these pre-installation tasks:
+
+  * Edit seed file - Add packages and disable RAID formatting script.
+  * Update cobbler systems to use serial console in kernel options
+  * Copy the template for our interfaces file
+  * Add ironic IP to hosts file
+  
+
+### Edit seed
+
+In osic-prep container, edit the seed (likely /opt/osic-prep/ubuntu-server-14.04-unattended-cobbler-osic-generic.seed) and make the following changes:
+
+    vi /opt/osic-prep/ubuntu-server-14.04-unattended-cobbler-osic-generic.seed
+    
+#### Extra packages
+
+Add the following packages (vlan, ifenslave)
+
+	#############
+	#
+	# Packages
+	#
+	#############
+
+	...
+
+	d-i pkgsel/include string vlan ifenslave
+
+#### RAID
+
+RAID setup must be disabled for SC. Comment out the line below if it exists.
+
+	#############
+	#
+	# Partitioning
+	#
+	#############
+
+	#d-i partman/early_command string \
+	#      wget --no-check-certificate https://raw.githubusercontent.com/osic/osic-raid-scripts/master/create_raid_generic.sh -O /tmp/create_raid_generic.sh; \
+	#      /bin/sh /tmp/create_raid_generic.sh
+
+### Copy update_cobbler_settings
+
+Copy the python script we will use to set console options on our cobbler systems
+
+    # copy santa clara cobbler update script to rpc-prep-scripts in container
+    lxc-attach --name osic-prep
+    cp /opt/osic-santaclara/update_cobbler_sytem.py /var/lib/lxc/osic-prep/rootfs/root/rpc-prep-scripts
+
+### Create kopts.txt
+
+Create a file with one line for each system and the kernel options required for console
+
+    # <node>,<kopts>
+    infra01,interface=em1 console=tty0 console=ttyS0,115200n8
+    infra02,interface=em1 console=tty0 console=ttyS0,115200n8
+    ...
+
+### Console in kernel options
+
+To use Horizon's console to control each server, we must provide additional kernel options for each system profile in cobbler. You can manually update each system or use the update_cobbler_system.py and a kopts.txt file to set the console paramters.
+
+#### Manually update cobbler systems
+
+Manually update a system to use serial console
+
+	# Manually update a system to use serial console
+	cobbler system edit --name=compute09 --kopts="interface=p2p1 console=tty0 console=ttyS0,115200n8"
+
+#### Use update_cobbler_settings.py
+
+Use script and file containing <nodename>,<kopts>
+
+	# use script and file containing <nodename>,<kopts>
+	lxc-attach -n osic-prep
+	cd rpc-prep-scripts
+	python update_cobbler_settings.py kopts.txt
+
+### Copy interface templates
+    
+    # copy santa clara interface templates. WARNING overrites existing templates
+    cp /opt/osic-santaclara/templates/* /opt/osic-ref-impl/playbooks/templates
+
+### Modify ansible hosts file
+
+The ansible hosts file must be modified to include an extra parameter per server "ironic_ip"
+ 
+Example:  
+
+/opt/osic-ref-impl/playbooks/inventory/hosts.hasvcs
+
+    [controller]
+    hasvcs-infra01 ansible_ssh_host=172.22.0.41 ironic_ip=10.3.72.117
+    hasvcs-infra02 ansible_ssh_host=172.22.0.42 ironic_ip=10.3.72.118
+    ...
+    
+## PXE Boot
+
+DO PXE BOOT HERE
+
 ## IMPORTANT: Kernel update
 
 IMPORTANT:
@@ -62,81 +191,19 @@ Reboot
     ansible -i inventory/hosts.hasvcs all -m shell -a "reboot" --ask-pass --limit '!deploy'
   
  
+## Bootstrap servers
     
     
+    cd /root/osic-prep-ansible
+
+    ansible-playbook -i inventory/hosts.hasvcs playbooks/bootstrap.yml --ask-pass --limit '!deploy'
     
-## Interfaces
-
-The SC cluster is comprised of Dell and Lenovo servers. The default NIC is different for each machine type and configuration files (e.g. input.csv) must account for different network interface names.
-
-The following list shows the bonded interface to be used for each machine type.
-
-  * Dell - em1
-  * Lenovo - p2p1
-
-The above interfaces must be entered into the input.csv during installation.
-
-	# example lines showing different interfaces (em1 and p2p1)
-	...
-	qa-ci-cinder03,f0:bc:12:07:05:b0,172.22.0.34,255.255.252.0,172.22.0.1,8.8.8.8,em1,ubuntu-14.04.3-server-unattended-osic-generic
-	qa-ci-swift01,f0:bc:12:07:1d:30,172.22.0.35,255.255.252.0,172.22.0.1,8.8.8.8,p2p1,ubuntu-14.04.3-server-unattended-osic-generic
-	...
-
-## Pre-installation items
-
-### Edit seed
-
-In osic-prep container, edit the seed (likely /opt/osic-prep/ubuntu-server-14.04-unattended-cobbler-osic-generic.seed) and make the following changes:
-
-#### Extra packages
-
-Add the following packages (vlan, ifenslave)
-
-	#############
-	#
-	# Packages
-	#
-	#############
-
-	...
-
-	d-i pkgsel/include string vlan ifenslave
-
-#### RAID
-
-RAID setup must be disabled for SC. Comment out the line below if it exists.
-
-	#############
-	#
-	# Partitioning
-	#
-	#############
-
-	#d-i partman/early_command string \
-	#      wget --no-check-certificate https://raw.githubusercontent.com/osic/osic-raid-scripts/master/create_raid_generic.sh -O /tmp/create_raid_generic.sh; \
-	#      /bin/sh /tmp/create_raid_generic.sh
-
-### Console in kernel options
-
-To use Horizon's console to control each server, we must provide additional kernel options for each system profile in cobbler. You can manually update each system or use the update_cobbler_system.py and a kopts.txt file to set the console paramters.
-
-#### Manually update cobbler profiles
-
-	# Manually update a system profile to use serial console
-	cobbler system edit --name=compute09 --kopts="interface=p2p1 console=tty0 console=ttyS0,115200n8"
-
-#### Use update_cobbler_profile.py
-
-	# use script and file containing <nodename>,<kopts>
-	lxc-attach -n osic-prep
-	cd rpc-prep-scripts
-	python update_cobbler_system.py kopts.txt
+    
 
 
-### Extra NICs
+# Keepalived  
 
-TBD
-
+The .22 address of container/mgmt_net needs to be assigned to keepalived
 
 # Ceph
 

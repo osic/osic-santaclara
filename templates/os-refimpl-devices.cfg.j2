@@ -1,0 +1,58 @@
+auto em1.{{ flat_vlan }}
+iface em1.{{ flat_vlan }} inet manual
+    vlan-raw-device em1
+
+iface bond0.{{ management_vlan }} inet manual
+    vlan-raw-device bond0
+
+iface bond0.{{ storage_vlan }} inet manual
+    vlan-raw-device bond0
+
+iface bond0.{{ overlay_vlan }} inet manual
+    vlan-raw-device bond0
+
+auto br-flat
+iface br-flat inet static
+    bridge_stp off
+    bridge_waitport 10
+    bridge_fd 0
+    bridge_ports p4p1.{{ flat_vlan }}
+    address {{ flat_network.split('.')[0:3] | join('.') }}.{{ ansible_ssh_host.split('.')[-1] }}
+    netmask 255.255.252.0
+    offload-sg off
+
+auto br-mgmt
+iface br-mgmt inet static
+    bridge_stp off
+    bridge_waitport 10
+    bridge_fd 0
+    bridge_ports bond0.{{ management_vlan }}
+    address {{ management_network.split('.')[0:3] | join('.')}}.{{ ansible_ssh_host.split('.')[-1] }}
+    netmask 255.255.252.0
+    offload-sg off
+
+auto br-storage
+iface br-storage inet static
+    bridge_stp off
+    bridge_waitport 10
+    bridge_fd 0
+    bridge_ports bond0.{{ storage_vlan }}
+    address {{ storage_network.split('.')[0:3] | join('.') }}.{{ ansible_ssh_host.split('.')[-1] }}
+    netmask 255.255.252.0
+    offload-sg off
+
+auto br-vxlan
+iface br-vxlan inet static
+    bridge_stp off
+    bridge_waitport 10
+    bridge_fd 0
+    bridge_ports bond0.{{ overlay_vlan }}
+    address {{ overlay_network.split('.')[0:3] | join('.') }}.{{ ansible_ssh_host.split('.')[-1] }}
+
+auto br-vlan
+iface br-vlan inet manual
+    bridge_stp off
+    bridge_waitport 10
+    bridge_fd 0
+    bridge_ports bond0
+    offload-sg off

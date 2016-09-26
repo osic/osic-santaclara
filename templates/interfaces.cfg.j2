@@ -1,0 +1,28 @@
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+auto em1
+iface em1 inet manual
+    bond-master bond0
+    bond-primary em1
+
+auto bond0
+iface bond0 inet static
+    address {{ ansible_ssh_host }}
+    netmask 255.255.252.0
+    #gateway 172.22.0.1
+    bond-slaves em1
+    bond-mode active-backup
+    bond-miimon 100
+    bond-downdelay 200
+    bond-updelay 200
+
+auto bond0.200
+iface bond0.200 inet static
+    address {{ ironic_ip }}
+    netmask 255.255.248.0
+    gateway 10.3.72.1
+    dns-nameservers 8.8.8.8
+    vlan-raw-device bond0
+

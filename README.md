@@ -27,6 +27,55 @@ The above interfaces must be entered into the input.csv during installation.
 
 TBD
 
+### Lenovo BIOS boot device selection problem
+
+BIOS on the Lenovo servers does not permit changing boot order but a woraround exists. To perform PXE boot, you must disable the RAID 
+controller as a boot device, PXE boot and then re-enable the RAID controller as a boot device. The normal method does 
+not work so we switch RAID to boot UEFI only and we maintain Boot Mode a Legacy Only. 
+
+
+
+#### Disable RAID control to facilitate PXE boot
+
+Follow these steps to disable RAID controller as boot device:
+
+  * Reboot and press F1 repeatedly to enter BIOS setup
+  * Press Right-Arrow 4 times to arrive at "Boot Manager" menu
+  * Ensure "Boot Mode" is set to "Legacy Only"
+  * Select "Miscellaneous Boot Settings" menu item
+  * Select "Storage OpROM Policy" and change to "UEFI Only"
+  * Press Esc to go back to top level Boot Manager menu
+  * Press Right Arrow to arrive at "Save and Exit" menu
+  * Select "Save Changes and Reset" to save and reboot
+  * With the RAID device effectively disabled, system should PXE boot.
+
+#### Enable RAID controller to boot from disk
+
+Follow these steps to enable RAID controller as boot device:
+
+  * Reboot and press F1 repeatedly to enter BIOS setup
+  * Press Right-Arrow 4 times to arrive at "Boot Manager" menu
+  * Ensure "Boot Mode" is set to "Legacy Only"
+  * Select "Miscellaneous Boot Settings" menu item
+  * Select "Storage OpROM Policy" and change to "Legacy Only"
+  * Press Esc to go back to top level Boot Manager menu
+  * Press Right Arrow to arrive at "Save and Exit" menu
+  * Select "Save Changes and Reset" to save and reboot
+  * With the RAID device effectively enabled, system should boot from internal disk.
+  
+### BIOS issues
+
+All issues observed in Lenovo BIOS (PB1TS144 V1.44.0 15 Oct 2015):
+
+  * Allows to change boot order but change is not persisted.  
+  * "Boot Manager->Legacy Hard Disk Drives" does not save when RAID is disabled.
+  * "Boot order" menu only allows choice of RAID or 1st Nic (slot 0200) 
+  * "Adapters and UEFI Drivers" page is blank (could be conditional)
+  * "Exclude boot device" page is blank
+  * F10 prompts to exit without saving. should prompt to save and exit.
+  * F11 Network boot menu never appears
+  * F12 Boot menu never appears
+  * LTDE (Lenovo ThinkServer Diagnostics Embeded) does not seem to work. (Black screen)
 
 ## Pre-installation items
 

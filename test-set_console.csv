@@ -1,0 +1,2 @@
+test-test,f8:bc:12:06:df:f0,172.22.0.23,255.255.252.0,172.22.0.1,8.8.8.8,em1,ubuntu-14.04.3-server-unattended-osic-generic
+test-test,f8:bc:12:07:1d:30,172.22.0.35,255.255.252.0,172.22.0.1,8.8.8.8,p2p1,ubuntu-14.04.3-server-unattended-osic-generic

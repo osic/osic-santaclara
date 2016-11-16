@@ -1,0 +1,140 @@
+---
+- name: Clean and prepare swift disks
+  hosts: 'swift'
+  gather_facts: false
+  remote_user: root
+  become: yes
+  tags:
+    - all
+    - swiftdiskonly
+  vars:
+    - forceformat: no
+
+  vars_files:
+    - vars/swift-disks.yml
+
+  tasks:
+    - name: Install xfsprogs package
+      apt:
+        name: xfsprogs
+        state: present
+        update_cache: yes
+
+    - name: Unmount it
+      mount: 
+        name: "/srv/node/{{ item }}"
+        src: "LABEL={{ item }}"
+        state: unmounted
+        fstype: xfs
+        opts: noatime,nodiratime,nobarrier,logbufs=8,noauto
+      when: forceformat == 'yes'
+      with_items: "{{ disks }}"
+
+    - name: Create xfs filesystem on target disk partition
+      filesystem:
+        dev: "/dev/{{ item }}"
+        fstype: xfs
+        opts: "-f -i size=1024 -L {{ item }}"
+        force: "{{ forceformat }}"
+      with_items: "{{ disks }}"
+
+    - name: Add the mount to the fstab
+      mount: 
+        name: "/srv/node/{{ item }}"
+        src: "LABEL={{ item }}"
+        state: present
+        fstype: xfs
+        opts: noatime,nodiratime,nobarrier,logbufs=8,noauto
+      with_items: "{{ disks }}"
+
+    - name: Mount it
+      mount: 
+        name: "/srv/node/{{ item }}"
+        src: "LABEL={{ item }}"
+        state: mounted
+        fstype: xfs
+        opts: noatime,nodiratime,nobarrier,logbufs=8,noauto
+      with_items: "{{ disks }}"
+
+
+- name: Clean and prepare cinder disks
+  hosts: 'cinder'
+  gather_facts: false
+  remote_user: root
+  become: yes
+  tags:
+    - all
+    - cinderdiskonly
+  vars:
+    - forceformat: no
+    - vg_pvlist: ""
+
+  vars_files:
+    - vars/cinder-disks.yml
+
+  tasks:
+    - name: Install xfsprogs package
+      apt:
+        name: xfsprogs
+        state: present
+        update_cache: yes
+
+    - name: Create list of pvs for volume group
+      set_fact:
+        vg_pvlist: "{{ vg_pvlist }}/dev/{{item}}1,"
+      with_items: "{{ disks }}"
+
+    - debug: var=vg_pvlist
+
+    - name: Remove Volume cinder-volumes Group
+      lvg: 
+        vg: cinder-volumes
+        state: absent
+        force: yes
+        pvs: "{{ vg_pvlist[:-1] }}"
+      when: forceformat == 'yes'
+  
+    - name: Remove any existing partitions
+      shell: for PART in 1 2 3 4; do if [ -e /dev/{{ item }}${PART} ]; then parted /dev/{{ item }} rm ${PART};  fi; done
+      with_items: "{{ disks }}"
+      when: forceformat == 'yes'
+
+    - name: Create a single lvm partitions
+      shell: parted /dev/{{ item }} -s mklabel gpt; parted /dev/{{ item }} -s mkpart primary 1M 100% set 1 lvm on
+      with_items: "{{ disks }}"
+      when: forceformat == 'yes'
+
+    - name: Create cinder-volumes Group
+      lvg: 
+        vg: cinder-volumes
+        state: present
+        force: no
+        pvs: "{{ vg_pvlist[:-1] }}"
+
+
+
+- name: Clean and prepare ceph disks
+  hosts: 'ceph'
+  gather_facts: false
+  remote_user: root
+  become: yes
+  tags:
+    - all
+    - cephdiskonly
+  vars:
+    - forceformat: no
+
+  vars_files:
+    - vars/ceph-disks.yml
+
+  tasks:
+    - name: Install xfsprogs package
+      apt:
+        name: xfsprogs
+        state: present
+        update_cache: yes
+
+    - name: Remove any existing partitions
+      shell: for PART in 1 2 3 4; do if [ -e /dev/{{ item }}${PART} ]; then parted /dev/{{ item }} rm ${PART};  fi; done
+      with_items: "{{ disks }}"
+      when: forceformat == 'yes'

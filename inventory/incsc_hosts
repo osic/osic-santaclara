@@ -1,0 +1,56 @@
+[controller]
+
+infra01 ansible_ssh_host=172.22.0.23 ironic_ip=10.3.72.99
+infra02 ansible_ssh_host=172.22.0.24 ironic_ip=10.3.72.100
+infra03 ansible_ssh_host=172.22.0.25 ironic_ip=10.3.72.101
+
+[logging]
+
+logger01 ansible_ssh_host=172.22.0.27 ironic_ip=10.3.72.103
+
+
+[swift]
+
+swift01 ansible_ssh_host=172.22.0.143 ironic_ip=10.3.72.218
+swift02 ansible_ssh_host=172.22.0.141 ironic_ip=10.3.72.219
+swift03 ansible_ssh_host=172.22.0.142 ironic_ip=10.3.72.220
+
+[network]
+
+network01 ansible_ssh_host=172.22.0.26 ironic_ip=10.3.72.102
+
+[compute]
+
+compute01 ansible_ssh_host=172.22.0.28 ironic_ip=10.3.72.104
+compute02 ansible_ssh_host=172.22.0.29 ironic_ip=10.3.72.105
+compute03 ansible_ssh_host=172.22.0.30 ironic_ip=10.3.72.106
+compute04 ansible_ssh_host=172.22.0.31 ironic_ip=10.3.72.107
+compute05 ansible_ssh_host=172.22.0.32 ironic_ip=10.3.72.108
+
+
+[ceph]
+
+ceph01 ansible_ssh_host=172.22.0.156 ironic_ip=10.3.72.215
+ceph02 ansible_ssh_host=172.22.0.155 ironic_ip=10.3.72.216
+ceph03 ansible_ssh_host=172.22.0.140 ironic_ip=10.3.72.217
+
+
+[mons:children]
+
+ceph
+
+
+[osds:children]
+
+ceph
+
+
+[mdss]
+
+ceph01
+
+
+[rgws]
+
+ceph01
+

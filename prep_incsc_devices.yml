@@ -1,0 +1,144 @@
+---
+- name: Fix local known_hosts file and remote authorized_keys configs
+  hosts: 'all:!deploy'
+  gather_facts: false
+  remote_user: root
+  become: yes
+  tags:
+    - sshonly
+  tasks:
+    - name: Remove any existing entries in the known_hosts
+      shell: ssh-keygen -R {{ ansible_ssh_host }}
+      delegate_to: localhost
+    - name: Add any new entries to the known_hosts
+      shell: ssh-keyscan -H {{ ansible_ssh_host }} >> /root/.ssh/known_hosts
+      delegate_to: localhost
+    - name: Copy local root pub key to authorized_keys file on the remote hosts
+      authorized_key:
+        user=root
+        key="{{ item }}"
+      with_file:
+        - /root/.ssh/id_rsa.pub
+
+
+- name: Remove the deleteme00 lv from the lxc vg
+  hosts: 'all:!deploy'
+  remote_user: root
+  become: yes
+  tasks:
+    - name: Unmount and remove from fstab
+      mount: 
+        name: /deleteme
+        src: /dev/mapper/lxc-deleteme00
+        state: "{{ item }}"
+        fstype: ext4
+      with_items: 
+        - unmounted
+        - absent
+    - name: Remove deleteme00 lvm volume
+      lvol:
+        vg: lxc
+        lv: deleteme00
+        force: yes
+        state: absent
+
+
+
+- name: Remove the nova00 lv from the lxc vg
+  hosts: 'controller:logging:cinder:swift:ceph:!compute:!deploy'
+  remote_user: root
+  become: yes
+  tasks:
+    - name: Unmount and remove from fstab
+      mount: 
+        name: /var/lib/nova
+        src: /dev/mapper/lxc-nova00
+        state: "{{ item }}"
+        fstype: ext4
+      with_items: 
+        - unmounted
+        - absent
+    - name: Remove nova00 lvm volume
+      lvol:
+        vg: lxc
+        lv: nova00
+        force: yes
+        state: absent
+
+
+- name: Create network interface files
+  hosts: 'all:!deploy'
+  remote_user: root
+  become: yes
+  vars_files:
+    - vars/vlan_network_mapping_incsc.yml
+  vars:
+    - interface_array: ['em1', 'em2', 'p3p1', 'p3p2']
+  tasks:
+    - name: Change interfaces for LENOVO devices(default is based off of Dell)
+      set_fact: interface_array={{ ['p1p1', 'p1p2', 'p4p1', 'p4p2'] }}
+      when: ansible_system_vendor == "LENOVO"
+    - name: make host ip static
+      template:
+        src: templates/interfaces.cfg.j2.incsc
+        dest: /etc/network/interfaces
+        owner: root
+        group: root
+        mode: 0644
+      register: intret
+    - name: Create os-refimpl-devices.cfg
+      template:
+        src: templates/os-refimpl-devices.cfg.j2.incsc
+        dest: /etc/network/interfaces.d/os-refimpl-devices.cfg
+        owner: root
+        group: root
+        mode: 0644
+      register: devret
+    - name: Reboot the server if needed.
+      command: shutdown -r now "Ansible triggered shutdown"
+      async: 0
+      poll: 0
+      when: intret.changed or devret.changed
+    - name: Wait for the servers to come back online
+      local_action: wait_for port=22 host={{ ansible_ssh_host }} search_regex=OpenSSH delay=60 state=started
+      when: intret.changed or devret.changed
+      
+
+
+- name: Update the kernel
+  hosts: 'all:!deploy'
+  remote_user: root
+  become: yes
+  tasks:
+    - name: Update to the latest linux-generic-lts-xenial kernel
+      apt:
+        update_cache: yes
+        name: linux-generic-lts-xenial
+        state: latest
+      register: kernel_update
+    - name: Reboot the server if needed.
+      command: shutdown -r now "Ansible triggered shutdown"
+      async: 0
+      poll: 0
+      when: kernel_update.changed
+    - name: Wait for the servers to come back online
+      local_action: wait_for port=22 host={{ ansible_ssh_host }} search_regex=OpenSSH delay=60 state=started
+      when: kernel_update.changed
+
+
+- name: Install Megaraid Software
+  hosts: 'all:!deploy'
+  remote_user: root
+  become: yes
+  tasks:
+    - name: Add the apt key for hwraid
+      apt_key: url=https://hwraid.le-vert.net/debian/hwraid.le-vert.net.gpg.key
+    - name: Add the hwraid repo to the apt configs
+      apt_repository: repo='deb http://hwraid.le-vert.net/ubuntu trusty main' state=present
+    - name: Install megacli
+      apt: 
+        update_cache: yes
+        name: megacli
+        state: latest
+
+

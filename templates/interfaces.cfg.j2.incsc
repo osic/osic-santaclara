@@ -1,0 +1,44 @@
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+# Physical interface 1
+auto {{ interface_array[0] }}
+iface  {{ interface_array[0] }} inet manual
+    bond-master bond0
+
+# Physical interface 2
+auto  {{ interface_array[1] }}
+iface  {{ interface_array[1] }} inet manual
+    bond-master bond0
+
+# Physical interface 3
+auto  {{ interface_array[2] }}
+iface  {{ interface_array[2] }} inet manual
+    bond-master bond0
+
+# Physical interface 4
+auto  {{ interface_array[3] }}
+iface  {{ interface_array[3] }} inet manual
+    bond-master bond0
+
+# Bond interface 0 (all physical interfaces in mode 4(802.3ad Dynamic link aggregation))
+auto bond0
+iface bond0 inet manual
+    bond-slaves {{ interface_array[0] }}  {{ interface_array[1] }}  {{ interface_array[2] }}  {{ interface_array[3] }}
+    bond-mode 4
+    bond-miimon 100
+    bond-lacp-rate 1
+
+# Default network vlan 200. 
+auto bond0.200
+iface bond0.200 inet static
+    address {{ ironic_ip }}
+    netmask 255.255.248.0
+    gateway 10.3.72.1
+    dns-nameservers 8.8.8.8 8.8.4.4
+    vlan-raw-device bond0
+
+# add the source line to pull in other .cfg files
+source /etc/network/interfaces.d/*.cfg
+
